@@ -1,0 +1,1355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Meridian — Plan by budget</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a1120;
+    --bg-2:#0d1626;
+    --panel:#111c30;
+    --panel-2:#16223a;
+    --line:#26334d;
+    --gold:#c9a227;
+    --gold-bright:#e7c766;
+    --teal:#3fa796;
+    --teal-dim:#245c53;
+    --rust:#c1594b;
+    --ink:#f2ede1;
+    --muted:#8b93a7;
+    --radius:12px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(1200px 600px at 85% -10%, rgba(63,167,150,0.10), transparent 60%),
+      radial-gradient(900px 500px at 10% 0%, rgba(201,162,39,0.08), transparent 55%),
+      var(--bg);
+    color:var(--ink);
+    font-family:'Public Sans', sans-serif;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+  h1,h2,h3,.display{font-family:'Fraunces', serif;}
+  .mono{font-family:'IBM Plex Mono', monospace;}
+  a{color:inherit;}
+
+  ::selection{background:var(--gold); color:#181205;}
+
+  /* ---------- layout shells ---------- */
+  .stage{max-width:1280px; margin:0 auto; padding:0 32px;}
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:26px 0 10px;
+  }
+  .brand{
+    display:flex; align-items:center; gap:10px;
+    font-family:'Fraunces', serif; font-weight:600; font-size:20px; letter-spacing:0.02em;
+  }
+  .brand .mark{
+    width:26px; height:26px; border-radius:50%;
+    border:1.5px solid var(--gold);
+    position:relative; flex:none;
+  }
+  .brand .mark::before, .brand .mark::after{
+    content:""; position:absolute; background:var(--gold);
+  }
+  .brand .mark::before{ left:50%; top:2px; bottom:2px; width:1px; transform:translateX(-50%);}
+  .brand .mark::after{ top:50%; left:2px; right:2px; height:1px; transform:translateY(-50%);}
+  .tag{color:var(--muted); font-size:13px; letter-spacing:0.04em;}
+
+  /* ---------- hero ---------- */
+  .hero{
+    display:grid; grid-template-columns: minmax(320px, 460px) 1fr;
+    gap:48px; align-items:center;
+    padding:36px 0 40px;
+    min-height:640px;
+  }
+  .eyebrow{
+    display:inline-flex; align-items:center; gap:8px;
+    color:var(--gold-bright); font-family:'IBM Plex Mono', monospace;
+    font-size:12px; letter-spacing:0.12em; text-transform:uppercase;
+    margin-bottom:18px;
+  }
+  .eyebrow::before{content:"◈"; font-size:11px;}
+  .hero h1{
+    font-size:clamp(34px, 4.4vw, 52px);
+    line-height:1.05; font-weight:600; margin:0 0 18px;
+    letter-spacing:-0.01em;
+  }
+  .hero h1 em{ font-style:italic; color:var(--teal);}
+  .hero-sub{
+    color:var(--muted); font-size:16px; line-height:1.6; max-width:44ch; margin:0 0 30px;
+  }
+
+  /* form */
+  form.trip-form{ display:flex; flex-direction:column; gap:18px; }
+  .field-row{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .field{ display:flex; flex-direction:column; gap:7px; }
+  .field label{
+    font-size:11px; letter-spacing:0.09em; text-transform:uppercase;
+    color:var(--muted); font-family:'IBM Plex Mono', monospace;
+  }
+  .field input[type=text], .field input[type=date], .field input[type=number], .field select{
+    background:var(--panel); border:1px solid var(--line); color:var(--ink);
+    border-radius:8px; padding:11px 12px; font-size:14.5px; font-family:'Public Sans';
+    outline:none; transition:border-color .15s ease, box-shadow .15s ease;
+  }
+  .field input::placeholder{ color:#5a6478; }
+  .field input:focus, .field select:focus, .chip:focus-visible, button:focus-visible{
+    border-color:var(--teal); box-shadow:0 0 0 3px rgba(63,167,150,0.18);
+  }
+  .budget-row{ display:flex; align-items:center; gap:12px; }
+  .budget-row input[type=range]{ flex:1; accent-color:var(--gold); }
+  .budget-readout{ font-family:'IBM Plex Mono', monospace; color:var(--gold-bright); font-size:15px; min-width:96px; text-align:right;}
+  .chips{ display:flex; flex-wrap:wrap; gap:8px; }
+  .chip{
+    background:transparent; border:1px solid var(--line); color:var(--muted);
+    padding:8px 13px; border-radius:999px; font-size:13px; cursor:pointer;
+    font-family:'Public Sans'; transition:all .15s ease;
+  }
+  .chip.active{ border-color:var(--teal); color:var(--teal); background:rgba(63,167,150,0.10); }
+  .chip:hover{ border-color:var(--gold); color:var(--gold-bright); }
+
+  .cta{
+    margin-top:6px; align-self:flex-start;
+    background:var(--gold); color:#191204; border:none;
+    padding:14px 26px; border-radius:9px; font-size:15px; font-weight:600;
+    cursor:pointer; letter-spacing:0.01em; display:inline-flex; align-items:center; gap:10px;
+    transition:transform .15s ease, background .15s ease;
+  }
+  .cta:hover{ background:var(--gold-bright); transform:translateY(-1px); }
+  .cta:disabled{ opacity:0.65; cursor:progress; transform:none; }
+  .cta .spinner{
+    width:14px; height:14px; border-radius:50%;
+    border:2px solid rgba(25,18,4,0.35); border-top-color:#191204;
+    animation:spin .7s linear infinite; display:none;
+  }
+  .cta.loading .spinner{ display:inline-block; }
+  .cta.loading .cta-label::after{ content:"Charting your route…"; }
+  .cta.loading .cta-label{ font-size:0; }
+  .cta.loading .cta-label::after{ font-size:15px; }
+  @keyframes spin{ to{ transform:rotate(360deg);} }
+
+  .form-error{ color:var(--rust); font-size:13px; display:none; }
+  .form-error.show{ display:block; }
+
+  /* globe */
+  .hero-globe{ position:relative; width:100%; aspect-ratio:1; max-height:560px; transform:translateY(-25px); }
+  .globe-canvas-wrap{ position:absolute; inset:0; }
+  #globeCanvas{ width:100%; height:100%; display:block; }
+  .compass-ring{
+    position:absolute; left:50%; top:50%; width:96%; aspect-ratio:1;
+    transform:translate(-50%,-50%);
+    pointer-events:none;
+    animation:ringspin 140s linear infinite;
+    opacity:0.55;
+  }
+  @keyframes ringspin{ to{ transform:translate(-50%,-50%) rotate(360deg); } }
+
+  /* ---------- results ---------- */
+  .results{ padding:50px 0 20px; border-top:1px solid var(--line); margin-top:10px; }
+  .results-header{
+    display:flex; justify-content:space-between; align-items:flex-end; gap:24px;
+    flex-wrap:wrap; margin-bottom:28px;
+  }
+  .results-header h2{ font-size:30px; margin:0 0 8px; font-weight:600; }
+  .results-meta{ color:var(--muted); font-size:14px; }
+  .results-meta .mono{ color:var(--teal); }
+  .budget-meter{ min-width:260px; }
+  .budget-meter-top{
+    display:flex; justify-content:space-between; font-family:'IBM Plex Mono', monospace;
+    font-size:12px; color:var(--muted); margin-bottom:6px;
+  }
+  .budget-meter-top b{ color:var(--gold-bright); font-weight:500; }
+  .meter-track{ height:6px; border-radius:4px; background:var(--panel-2); overflow:hidden; }
+  .meter-fill{ height:100%; background:linear-gradient(90deg, var(--teal), var(--gold)); border-radius:4px; }
+
+  .results-body{ display:grid; grid-template-columns: 1fr 340px; gap:28px; align-items:start; }
+
+  .day-tabs{ display:flex; gap:8px; margin-bottom:20px; flex-wrap:wrap; }
+  .day-tab{
+    background:var(--panel); border:1px solid var(--line); color:var(--muted);
+    padding:9px 15px; border-radius:8px; font-family:'IBM Plex Mono', monospace;
+    font-size:12.5px; cursor:pointer; letter-spacing:0.03em;
+  }
+  .day-tab.active{ border-color:var(--gold); color:var(--gold-bright); background:rgba(201,162,39,0.08); }
+
+  .timeline{ display:flex; flex-direction:column; gap:0; position:relative; }
+  .timeline::before{
+    content:""; position:absolute; left:29px; top:6px; bottom:6px; width:1px;
+    background:linear-gradient(var(--line), var(--line));
+  }
+  .item{ display:grid; grid-template-columns:58px 1fr; gap:16px; padding:16px 0; }
+  .item-time{ font-family:'IBM Plex Mono', monospace; font-size:12px; color:var(--gold-bright); padding-top:3px; text-align:right; }
+  .item-dot-col{ display:none; }
+  .item-card{
+    background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
+    padding:16px 18px; position:relative;
+  }
+  .item-card::before{
+    content:""; position:absolute; left:-33px; top:22px; width:9px; height:9px;
+    border-radius:50%; background:var(--bg); border:2px solid var(--teal);
+  }
+  .results-header h2 a{ color:var(--ink); text-decoration:none; transition:color 0.15s ease; }
+  .results-header h2 a:hover{ color:var(--gold-bright); }
+  .item-top{ display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
+  .item-name{ font-weight:600; font-size:15.5px; }
+  .item-name a{ color:var(--ink); text-decoration:none; transition:color 0.15s ease; display:inline-flex; align-items:center; gap:4px; }
+  .item-name a:hover{ color:var(--gold-bright); }
+  .item-name a .link-arrow{ font-size:11px; opacity:0.5; transition:opacity 0.15s ease; }
+  .item-name a:hover .link-arrow{ opacity:1; }
+  .item-type{
+    font-family:'IBM Plex Mono', monospace; font-size:10.5px; letter-spacing:0.08em;
+    text-transform:uppercase; color:var(--muted); margin-top:3px;
+  }
+  .item-cost{
+    font-family:'IBM Plex Mono', monospace; color:var(--teal); font-size:13.5px; white-space:nowrap;
+  }
+  .item-desc{ color:var(--muted); font-size:13.5px; line-height:1.55; margin-top:4px; }
+  .item-sub{ color:#5a6478; font-size:11.5px; margin-top:4px; font-family:'IBM Plex Mono', monospace; }
+  
+  /* Premium Itinerary Card Extensions */
+  .item-card {
+    background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
+    padding:16px 18px; position:relative;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .item-card-inner {
+    display: flex; gap: 16px; justify-content: space-between; align-items: flex-start;
+  }
+  .item-card-text {
+    flex: 1;
+  }
+  .item-card-img {
+    width: 120px; height: 85px; border-radius: 6px; object-fit: cover; flex-shrink: 0;
+    border: 1px solid var(--line);
+  }
+  .item-meta-row {
+    display: flex; flex-wrap: wrap; gap: 8px; font-size: 11.5px; color: var(--muted);
+    font-family: 'IBM Plex Mono', monospace; margin-top: 6px;
+  }
+  .item-meta-badge {
+    background: rgba(255,255,255,0.03); padding: 1px 6px; border-radius: 4px; border: 1px solid var(--line);
+  }
+  .item-travel-info {
+    font-size: 12px; color: var(--gold-bright); font-family: 'IBM Plex Mono', monospace;
+    display: flex; align-items: center; gap: 6px; padding-bottom: 6px; border-bottom: 1px dashed var(--line);
+    margin-bottom: 4px;
+  }
+  .item-actions {
+    display: flex; gap: 10px; margin-top: 8px;
+  }
+  .item-btn {
+    font-size: 11px; font-family: 'IBM Plex Mono', monospace; color: var(--teal);
+    text-decoration: none; border: 1px solid var(--teal-dim); padding: 3px 8px;
+    border-radius: 4px; background: rgba(63, 167, 150, 0.03); transition: all 0.15s ease;
+    display: inline-flex; align-items: center; gap: 4px;
+  }
+  .item-btn:hover {
+    background: rgba(63, 167, 150, 0.12); color: var(--teal-bright); border-color: var(--teal);
+  }
+
+  aside.route-panel{ position:sticky; top:20px; display:flex; flex-direction:column; gap:18px; }
+  .panel-box{ background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:18px; }
+  .panel-box h3{ font-size:13px; margin:0 0 12px; color:var(--muted); font-weight:600; letter-spacing:0.03em; text-transform:uppercase; font-family:'IBM Plex Mono', monospace;}
+  #routeMap{ width:100%; height:230px; display:block; }
+  .legend{ display:flex; gap:16px; margin-top:10px; font-size:11.5px; color:var(--muted); }
+  .legend span{ display:inline-flex; align-items:center; gap:6px; }
+  .legend i{ width:8px; height:8px; border-radius:50%; display:inline-block; }
+
+  .budget-chart-row{ display:flex; align-items:center; gap:16px; }
+  #budgetChart{ flex:none; }
+  .budget-breakdown{ font-size:13px; display:flex; flex-direction:column; gap:8px; flex:1;}
+  .breakdown-row{ display:flex; justify-content:space-between; }
+  .breakdown-row .k{ display:flex; align-items:center; gap:7px; color:var(--muted); }
+  .breakdown-row .k i{ width:8px; height:8px; border-radius:2px; display:inline-block; }
+  .breakdown-row .v{ font-family:'IBM Plex Mono', monospace; }
+
+  .results-actions{ display:flex; gap:12px; margin-top:32px; flex-wrap:wrap; }
+  .btn-secondary{
+    background:transparent; border:1px solid var(--line); color:var(--ink);
+    padding:12px 20px; border-radius:9px; cursor:pointer; font-size:14px; font-family:'Public Sans';
+  }
+  .btn-secondary:hover{ border-color:var(--teal); color:var(--teal); }
+  .btn-primary{
+    background:var(--teal); border:none; color:#06201b; font-weight:600;
+    padding:12px 22px; border-radius:9px; cursor:pointer; font-size:14px;
+  }
+  .btn-primary:hover{ background:#4fc0ac; }
+  .btn-primary:disabled{ opacity:0.6; cursor:default; }
+  .save-note{ font-size:12.5px; color:var(--muted); align-self:center; }
+
+  /* ---------- saved trips ---------- */
+  .saved{ padding:56px 0 90px; border-top:1px solid var(--line); margin-top:44px; }
+  .saved h2{ font-size:24px; margin:0 0 6px; }
+  .saved > p{ color:var(--muted); font-size:14px; margin:0 0 24px; }
+  .saved-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(240px,1fr)); gap:16px; }
+  .saved-card{
+    background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
+    padding:18px; display:flex; flex-direction:column; gap:10px;
+  }
+  .saved-card h4{ margin:0; font-size:16px; font-weight:600; }
+  .saved-card .meta{ color:var(--muted); font-size:12.5px; font-family:'IBM Plex Mono', monospace; }
+  .saved-card .actions{ display:flex; gap:8px; margin-top:6px; }
+  .saved-card button{
+    background:transparent; border:1px solid var(--line); color:var(--muted);
+    padding:7px 12px; border-radius:7px; font-size:12.5px; cursor:pointer;
+  }
+  .saved-card button.view{ color:var(--teal); border-color:var(--teal-dim); }
+  .saved-card button.del:hover{ color:var(--rust); border-color:var(--rust); }
+  .empty-state{
+    grid-column:1/-1; color:var(--muted); font-size:13.5px; border:1px dashed var(--line);
+    border-radius:var(--radius); padding:26px; text-align:center;
+  }
+
+  footer{ text-align:center; padding:26px 0 40px; color:#4c5570; font-size:12px; font-family:'IBM Plex Mono', monospace; }
+
+  [hidden]{ display:none !important; }
+
+  @media (max-width: 880px){
+    .hero{ grid-template-columns:1fr; min-height:auto; padding-top:10px; }
+    .hero-globe{ height:340px; order:-1; }
+    .results-body{ grid-template-columns:1fr; }
+    aside.route-panel{ position:static; }
+    .field-row{ grid-template-columns:1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="stage">
+
+  <header class="topbar">
+    <div class="brand"><span class="mark"></span>Meridian</div>
+    <div class="tag">Plan by budget, not by guesswork</div>
+  </header>
+
+  <!-- ============ HERO ============ -->
+  <section class="hero" id="hero">
+    <div class="hero-copy">
+      <span class="eyebrow">Budget-aware trip planning</span>
+      <h1>Tell us the budget.<br>We'll chart the <em>days</em>.</h1>
+      <p class="hero-sub">Set a destination and a number. Meridian builds a day-by-day plan — real pacing, paired meals, and a cost estimate that stays inside what you set, with room to breathe.</p>
+
+      <form class="trip-form" id="tripForm">
+        <div class="field">
+          <label for="destination">Destination</label>
+          <input type="text" id="destination" placeholder="e.g. Lisbon, Kyoto, Oaxaca…" required>
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label for="startDate">Depart</label>
+            <input type="date" id="startDate">
+          </div>
+          <div class="field">
+            <label for="endDate">Return</label>
+            <input type="date" id="endDate">
+          </div>
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label for="travelers">Travelers</label>
+            <input type="number" id="travelers" min="1" max="12" value="2">
+          </div>
+          <div class="field">
+            <label for="currency">Currency</label>
+            <select id="currency">
+              <option value="USD">USD — $</option>
+              <option value="EUR">EUR — €</option>
+              <option value="GBP">GBP — £</option>
+              <option value="INR">INR — ₹</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="budget">Total budget (excl. flights)</label>
+          <div class="budget-row">
+            <input type="range" id="budget" min="200" max="10000" step="50" value="1800">
+            <span class="budget-readout mono" id="budgetReadout">$1,800</span>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Interests</label>
+          <div class="chips" id="interestChips">
+            <button type="button" class="chip active" data-v="History & culture">History &amp; culture</button>
+            <button type="button" class="chip active" data-v="Food & drink">Food &amp; drink</button>
+            <button type="button" class="chip" data-v="Nature & outdoors">Nature &amp; outdoors</button>
+            <button type="button" class="chip" data-v="Art & design">Art &amp; design</button>
+            <button type="button" class="chip" data-v="Nightlife">Nightlife</button>
+            <button type="button" class="chip" data-v="Markets & shopping">Markets &amp; shopping</button>
+            <button type="button" class="chip" data-v="Temples & holy places">Temples &amp; holy places</button>
+          </div>
+        </div>
+
+        <span class="form-error" id="formError">Add a destination to chart a route.</span>
+
+        <button type="submit" class="cta" id="generateBtn">
+          <span class="spinner"></span>
+          <span class="cta-label">Chart the trip →</span>
+        </button>
+      </form>
+    </div>
+
+    <div class="hero-globe">
+      <div class="globe-canvas-wrap"><canvas id="globeCanvas"></canvas></div>
+      <svg class="compass-ring" viewBox="0 0 200 200">
+        <circle cx="100" cy="100" r="94" fill="none" stroke="#c9a227" stroke-width="0.6" opacity="0.6"/>
+        <circle cx="100" cy="100" r="80" fill="none" stroke="#c9a227" stroke-width="0.4" opacity="0.35"/>
+        <g stroke="#c9a227" stroke-width="0.6" opacity="0.5">
+          <!-- tick marks every 15deg -->
+          <g id="ticks"></g>
+        </g>
+        <g fill="#e7c766" font-family="IBM Plex Mono, monospace" font-size="9" text-anchor="middle" opacity="0.85">
+          <text x="100" y="14">N</text>
+          <text x="100" y="193">S</text>
+          <text x="12" y="103">W</text>
+          <text x="188" y="103">E</text>
+        </g>
+      </svg>
+    </div>
+  </section>
+
+  <!-- ============ RESULTS ============ -->
+  <section class="results" id="results" hidden>
+    <div class="results-header">
+      <div>
+        <h2 id="resultTitle">—</h2>
+        <div class="results-meta" id="resultMeta"></div>
+      </div>
+      <div class="budget-meter">
+        <div class="budget-meter-top">
+          <span>Estimated spend</span>
+          <span><b id="meterSpend">—</b> / <span id="meterBudget">—</span></span>
+        </div>
+        <div class="meter-track"><div class="meter-fill" id="meterFill" style="width:0%"></div></div>
+      </div>
+    </div>
+
+    <p id="resultSummary" style="color:var(--muted); max-width:70ch; line-height:1.6; font-size:14.5px; margin:-10px 0 26px;"></p>
+
+    <div class="results-body">
+      <div>
+        <nav class="day-tabs" id="dayTabs"></nav>
+        <div class="timeline" id="timeline"></div>
+      </div>
+
+      <aside class="route-panel">
+        <div class="panel-box">
+          <h3>Route — active day</h3>
+          <svg id="routeMap" viewBox="0 0 300 230"></svg>
+          <div class="legend">
+            <span><i style="background:var(--gold);"></i>Stop, in order</span>
+            <span><i style="background:var(--teal);"></i>Meal</span>
+          </div>
+        </div>
+        <div class="panel-box">
+          <h3>Budget breakdown</h3>
+          <div class="budget-chart-row">
+            <canvas id="budgetChart" width="96" height="96"></canvas>
+            <div class="budget-breakdown" id="budgetBreakdown"></div>
+          </div>
+        </div>
+        <div class="panel-box" id="metricsPanel">
+          <h3>Trip Summary Metrics</h3>
+          <div class="budget-breakdown">
+            <div class="breakdown-row">
+              <span class="k">🚗 Total Distance</span>
+              <span class="v" id="metricDistance">0 km</span>
+            </div>
+            <div class="breakdown-row">
+              <span class="k">⏱️ Travel Time</span>
+              <span class="v" id="metricDuration">0 mins</span>
+            </div>
+            <div class="breakdown-row" style="border-top:1px dashed var(--line); margin-top:6px; padding-top:6px;">
+              <span class="k">🚕 Transport Cost</span>
+              <span class="v" id="metricTransport">$0</span>
+            </div>
+            <div class="breakdown-row">
+              <span class="k">🍔 Food Cost</span>
+              <span class="v" id="metricFood">$0</span>
+            </div>
+            <div class="breakdown-row">
+              <span class="k">🎟️ Ticket Cost</span>
+              <span class="v" id="metricTickets">$0</span>
+            </div>
+            <div class="breakdown-row">
+              <span class="k">🏨 Hotel Cost</span>
+              <span class="v" id="metricHotel">$0</span>
+            </div>
+            <div class="breakdown-row" style="border-top:1px dashed var(--line); margin-top:6px; padding-top:6px; font-weight:bold;">
+              <span class="k">💰 Total Cost</span>
+              <span class="v" id="metricTotalCost" style="color:var(--gold-bright);">$0</span>
+            </div>
+            <div class="breakdown-row" style="font-weight:bold;">
+              <span class="k">💳 Remaining</span>
+              <span class="v" id="metricRemaining" style="color:var(--teal);">$0</span>
+            </div>
+          </div>
+          <div style="margin-top:14px;">
+            <a href="#" target="_blank" rel="noopener noreferrer" class="btn-primary" id="metricRouteLink" style="display:block; text-align:center; padding:10px; font-size:12.5px; text-decoration:none; border-radius:6px; font-family:'IBM Plex Mono', monospace;">
+              Open Complete Route 🗺️
+            </a>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <div class="results-actions">
+      <button class="btn-primary" id="saveTripBtn">Save this trip</button>
+      <button class="btn-secondary" id="newTripBtn">Start over</button>
+      <span class="save-note" id="saveNote"></span>
+    </div>
+  </section>
+
+  <!-- ============ SAVED TRIPS ============ -->
+  <section class="saved" id="savedSection">
+    <h2>My trips</h2>
+    <p>Saved to your Meridian account. Only you can see these.</p>
+    <div class="saved-grid" id="savedGrid">
+      <div class="empty-state">Nothing saved yet — plan a trip above and save it to see it here.</div>
+    </div>
+  </section>
+
+  <footer>MERIDIAN — a demo trip planner. Itineraries are generated locally, not fetched from live map or AI providers.</footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* ============================================================
+   0. Compass ring ticks
+============================================================ */
+(function drawTicks(){
+  const g = document.getElementById('ticks');
+  for(let deg=0; deg<360; deg+=15){
+    const rad = deg * Math.PI/180;
+    const rOuter = 94, rInner = (deg % 90 === 0) ? 84 : 88;
+    const x1 = 100 + rOuter*Math.sin(rad), y1 = 100 - rOuter*Math.cos(rad);
+    const x2 = 100 + rInner*Math.sin(rad), y2 = 100 - rInner*Math.cos(rad);
+    const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.setAttribute('x1',x1); line.setAttribute('y1',y1);
+    line.setAttribute('x2',x2); line.setAttribute('y2',y2);
+    g.appendChild(line);
+  }
+})();
+
+/* ============================================================
+   1. 3D wireframe globe (Three.js) — the hero's signature element
+============================================================ */
+(function initGlobe(){
+  const wrap = document.querySelector('.globe-canvas-wrap');
+  const canvas = document.getElementById('globeCanvas');
+  const renderer = new THREE.WebGLRenderer({canvas, alpha:true, antialias:true});
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 100);
+  camera.position.set(0, 0, 6.2);
+
+  function size(){
+    const w = wrap.clientWidth, h = wrap.clientHeight;
+    renderer.setSize(w, h, false);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
+    camera.aspect = w/h; camera.updateProjectionMatrix();
+  }
+  size();
+  window.addEventListener('resize', size);
+
+  const group = new THREE.Group();
+  scene.add(group);
+
+  // wireframe sphere
+  const sphereGeo = new THREE.SphereGeometry(2, 22, 16);
+  const sphereMat = new THREE.MeshBasicMaterial({color:0x3fa796, wireframe:true, transparent:true, opacity:0.30});
+  group.add(new THREE.Mesh(sphereGeo, sphereMat));
+
+  // faint inner solid perfectly smooth
+  const innerMat = new THREE.MeshBasicMaterial({color:0x0d1626, transparent:true, opacity:0.5});
+  group.add(new THREE.Mesh(new THREE.SphereGeometry(1.94, 64, 64), innerMat));
+
+  // starfield
+  const starGeo = new THREE.BufferGeometry();
+  const starCount = 260;
+  const starPos = new Float32Array(starCount*3);
+  for(let i=0;i<starCount;i++){
+    const r = 9 + Math.random()*6;
+    const theta = Math.random()*Math.PI*2, phi = Math.acos(2*Math.random()-1);
+    starPos[i*3] = r*Math.sin(phi)*Math.cos(theta);
+    starPos[i*3+1] = r*Math.sin(phi)*Math.sin(theta);
+    starPos[i*3+2] = r*Math.cos(phi);
+  }
+  starGeo.setAttribute('position', new THREE.BufferAttribute(starPos,3));
+  const starMat = new THREE.PointsMaterial({color:0x8b93a7, size:0.035, transparent:true, opacity:0.55});
+  scene.add(new THREE.Points(starGeo, starMat));
+
+  // marker points (illustrative, not real coordinates)
+  const latLngs = [
+    [48.85, 2.35], [35.68, 139.76], [-13.16, -72.55], [30.06, 31.23],
+    [64.13, -21.9], [-33.87, 151.21], [41.9, 12.5], [19.43, -99.13]
+  ];
+  function toXYZ(lat, lng, r){
+    const phi = (90-lat) * Math.PI/180;
+    const theta = (lng+180) * Math.PI/180;
+    return new THREE.Vector3(
+      -r*Math.sin(phi)*Math.cos(theta),
+      r*Math.cos(phi),
+      r*Math.sin(phi)*Math.sin(theta)
+    );
+  }
+  const markerGroup = new THREE.Group();
+  const markers = [];
+  const markerMat = new THREE.MeshBasicMaterial({color:0xe7c766});
+  latLngs.forEach(([lat,lng])=>{
+    const p = toXYZ(lat,lng,2.03);
+    const m = new THREE.Mesh(new THREE.SphereGeometry(0.035, 8, 8), markerMat);
+    m.position.copy(p);
+    markerGroup.add(m);
+    markers.push(m);
+  });
+  group.add(markerGroup);
+
+  // arcs connecting consecutive markers
+  const arcMat = new THREE.LineBasicMaterial({color:0xc9a227, transparent:true, opacity:0.45});
+  for(let i=0;i<latLngs.length;i++){
+    const a = toXYZ(latLngs[i][0], latLngs[i][1], 2.02);
+    const b = toXYZ(latLngs[(i+1)%latLngs.length][0], latLngs[(i+1)%latLngs.length][1], 2.02);
+    const mid = a.clone().add(b).multiplyScalar(0.5).normalize().multiplyScalar(2.02 + 0.55);
+    const curve = new THREE.QuadraticBezierCurve3(a, mid, b);
+    const pts = curve.getPoints(40);
+    const geo = new THREE.BufferGeometry().setFromPoints(pts);
+    group.add(new THREE.Line(geo, arcMat));
+  }
+
+  let mouseX = 0, mouseY = 0;
+  wrap.addEventListener('pointermove', (e)=>{
+    const rect = wrap.getBoundingClientRect();
+    mouseX = ((e.clientX-rect.left)/rect.width - 0.5);
+    mouseY = ((e.clientY-rect.top)/rect.height - 0.5);
+  });
+
+  const clock = new THREE.Clock();
+  function animate(){
+    requestAnimationFrame(animate);
+    const t = clock.getElapsedTime();
+    group.rotation.y += 0.0019;
+    group.rotation.x += (mouseY*0.25 - group.rotation.x)*0.02;
+    group.rotation.z += (-mouseX*0.12 - group.rotation.z)*0.02;
+    markers.forEach((m,i)=>{
+      const s = 1 + Math.sin(t*2 + i)*0.35;
+      m.scale.setScalar(s);
+    });
+    renderer.render(scene, camera);
+  }
+  animate();
+})();
+
+/* ============================================================
+   2. Content pools for the local itinerary generator
+============================================================ */
+const ATTRACTIONS = [
+  {n:(d)=>`${d} Old Town Walk`, desc:"Wander the cobbled core on foot — no fixed route, just the oldest streets in the city.", dur:110},
+  {n:(d)=>`${d} National Museum`, desc:"Three centuries of the region's art and artifacts. Start on the top floor for the best light.", dur:130},
+  {n:(d)=>`Sunrise Viewpoint`, desc:"The highest accessible lookout in town. Arrive twenty minutes early to beat the crowd.", dur:55},
+  {n:(d)=>`${d} Botanical Gardens`, desc:"Forty shaded acres, a good slow start if the day before ran long.", dur:95},
+  {n:(d)=>`Central Market`, desc:"A working market by day — cheese counters, spice stalls, a fish stand three generations old.", dur:80},
+  {n:(d)=>`Riverside Promenade`, desc:"A flat, tree-lined walk along the water. Rent a bike if your legs are tired.", dur:70},
+  {n:(d)=>`${d} Cathedral & Bell Tower`, desc:"Climb the tower for the skyline, or skip it and just sit in the nave for the quiet.", dur:65},
+  {n:(d)=>`The Artisan Quarter`, desc:"Workshops still open to the street: a glassblower, a printmaker, a bookbinder forty years in.", dur:90},
+  {n:(d)=>`Harbor Cable Car`, desc:"Ten minutes each way. Best seat is on the left heading up.", dur:35},
+  {n:(d)=>`${d} Street Art District`, desc:"Murals turn over every season; a local co-op hands out free maps from the corner café.", dur:75},
+  {n:(d)=>`Hilltop Fortress Ruins`, desc:"Half-collapsed walls with the best panorama in the region, and almost no one there before 10am.", dur:100},
+  {n:(d)=>`${d} Design Museum`, desc:"A small, well-edited collection — an hour is plenty, ninety minutes if you read every label.", dur:80},
+];
+
+const RESTAURANTS = [
+  {n:()=>"The Copper Spoon", desc:"Unfussy plates built around whatever the morning market had best."},
+  {n:()=>"Nonna's Table", desc:"Family-run since the 1970s. The daily special is always the move."},
+  {n:()=>"Marchetti & Sons", desc:"A counter-seat institution — arrive hungry, leave later than planned."},
+  {n:()=>"Salt & Char", desc:"Open-fire cooking, short menu, changes with the season."},
+  {n:()=>"The Lantern Room", desc:"Low light, tasting menu, the one splurge night worth booking ahead."},
+  {n:()=>"Corner Bakery & Café", desc:"Fast, cheap, and reliably good — built for a lunch between stops."},
+  {n:()=>"Riverside Grill", desc:"Waterfront tables. Reserve ahead for sunset seating."},
+  {n:()=>"The Local's Kitchen", desc:"No English menu. Point at what looks good — it always works out."},
+];
+
+const DAY_TITLES = ["First Impressions","Deeper In","Local Life","Slow Morning, Big Views","Markets & Makers","One Last Loop","Out of the Center"];
+
+const TIER_COST = {
+  attraction: [8, 15, 28, 45],
+  lunch:      [9, 16, 30, 52],
+  dinner:     [14, 26, 48, 85],
+};
+const CURRENCY_SYMBOL = {USD:"$", EUR:"€", GBP:"£", INR:"₹"};
+
+function shuffle(arr){
+  const a = arr.slice();
+  for(let i=a.length-1;i>0;i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [a[i],a[j]] = [a[j],a[i]];
+  }
+  return a;
+}
+
+function budgetTierIndex(perDayPerTraveler){
+  if(perDayPerTraveler < 60) return 0;
+  if(perDayPerTraveler < 150) return 1;
+  if(perDayPerTraveler < 300) return 2;
+  return 3;
+}
+
+function generateTrip({destination, budget, currency, travelers, numDays, interests}){
+  const perDayPerTraveler = budget / (numDays * travelers);
+  const tier = budgetTierIndex(perDayPerTraveler);
+  const groupFactor = 1 + 0.4*(travelers-1); // shared-cost approximation, not linear per head
+
+  const attractionPool = shuffle(ATTRACTIONS);
+  const restaurantPool = shuffle(RESTAURANTS);
+  let aIdx = 0, rIdx = 0;
+  const nextAttraction = () => attractionPool[(aIdx++) % attractionPool.length];
+  const nextRestaurant = () => restaurantPool[(rIdx++) % restaurantPool.length];
+
+  const days = [];
+  let totalCost = 0;
+
+  for(let d=1; d<=numDays; d++){
+    const items = [];
+    let order = 1;
+
+    const morning = nextAttraction();
+    items.push(mkItem(order++, "attraction", morning.n(destination), morning.desc, "09:00", morning.dur,
+      round2(TIER_COST.attraction[tier]*groupFactor)));
+
+    const lunch = nextRestaurant();
+    items.push(mkItem(order++, "restaurant", lunch.n(), lunch.desc, "12:30", 70,
+      round2(TIER_COST.lunch[tier]*groupFactor), "Lunch"));
+
+    const afternoon = nextAttraction();
+    items.push(mkItem(order++, "attraction", afternoon.n(destination), afternoon.desc, "14:30", afternoon.dur,
+      round2(TIER_COST.attraction[tier]*groupFactor)));
+
+    if(tier >= 2 && d % 2 === 1){
+      const bonus = nextAttraction();
+      items.push(mkItem(order++, "activity", bonus.n(destination), bonus.desc, "17:15", bonus.dur,
+        round2(TIER_COST.attraction[tier]*0.7*groupFactor)));
+    }
+
+    const dinner = nextRestaurant();
+    items.push(mkItem(order++, "restaurant", dinner.n(), dinner.desc, "19:30", 90,
+      round2(TIER_COST.dinner[tier]*groupFactor), "Dinner"));
+
+    const dayTotal = items.reduce((s,i)=>s+i.estimatedCost, 0);
+    totalCost += dayTotal;
+
+    days.push({
+      dayNumber: d,
+      title: DAY_TITLES[(d-1) % DAY_TITLES.length],
+      items,
+    });
+  }
+
+  const buffer = totalCost * 0.15;
+  const withBuffer = totalCost + buffer;
+
+  const interestPhrase = interests.length
+    ? interests.slice(0,2).map(s=>s.toLowerCase()).join(" and ")
+    : "a bit of everything";
+
+  const summary = `A ${numDays}-day route through ${destination}, weighted toward ${interestPhrase}, `
+    + `paced for ${travelers} traveler${travelers>1?"s":""} at a ${["light","moderate","comfortable","upscale"][tier]} spend. `
+    + `Estimated cost sits ${withBuffer <= budget ? "within" : "slightly over"} the ${CURRENCY_SYMBOL[currency]}${Math.round(budget).toLocaleString()} budget, with roughly 15% held back for transit and incidentals.`;
+
+  return {
+    destination, currency, budget, travelers, numDays,
+    days,
+    totalEstimatedCost: round2(totalCost),
+    totalWithBuffer: round2(withBuffer),
+    summary,
+  };
+}
+
+function mkItem(order, type, name, desc, startTime, durationMins, estimatedCost, sub){
+  return {order, type, name, desc, startTime, durationMins, estimatedCost, sub: sub||null};
+}
+function round2(n){ return Math.round(n*100)/100; }
+
+/* ============================================================
+   3. Form wiring
+============================================================ */
+const budgetInput = document.getElementById('budget');
+const budgetReadout = document.getElementById('budgetReadout');
+const currencySelect = document.getElementById('currency');
+
+function refreshBudgetReadout(){
+  const sym = CURRENCY_SYMBOL[currencySelect.value];
+  budgetReadout.textContent = sym + Number(budgetInput.value).toLocaleString();
+}
+budgetInput.addEventListener('input', refreshBudgetReadout);
+currencySelect.addEventListener('change', refreshBudgetReadout);
+refreshBudgetReadout();
+
+document.querySelectorAll('.chip').forEach(chip=>{
+  chip.addEventListener('click', ()=> chip.classList.toggle('active'));
+});
+
+// sensible default dates: 5 weeks out, 4 nights
+(function defaultDates(){
+  const start = new Date(); start.setDate(start.getDate()+35);
+  const end = new Date(start); end.setDate(end.getDate()+4);
+  document.getElementById('startDate').value = start.toISOString().slice(0,10);
+  document.getElementById('endDate').value = end.toISOString().slice(0,10);
+})();
+
+// Fallback for window.storage using localStorage if not injected by IDE/webview container
+if (!window.storage) {
+  window.storage = {
+    async set(key, value) {
+      localStorage.setItem(key, value);
+      return true;
+    },
+    async get(key) {
+      const val = localStorage.getItem(key);
+      return val ? { value: val } : null;
+    },
+    async list(prefix) {
+      const keys = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith(prefix)) {
+          keys.push(k);
+        }
+      }
+      return { keys };
+    },
+    async delete(key) {
+      localStorage.removeItem(key);
+      return true;
+    }
+  };
+}
+
+let currentTrip = null;
+let activeDayIndex = 0;
+
+const form = document.getElementById('tripForm');
+const generateBtn = document.getElementById('generateBtn');
+const formError = document.getElementById('formError');
+
+form.addEventListener('submit', (e)=>{
+  e.preventDefault();
+  const destination = document.getElementById('destination').value.trim();
+  if(!destination){
+    formError.classList.add('show');
+    document.getElementById('destination').focus();
+    return;
+  }
+  formError.classList.remove('show');
+
+  const startDate = document.getElementById('startDate').value;
+  const endDate = document.getElementById('endDate').value;
+  let numDays = 3;
+  if(startDate && endDate){
+    const diff = Math.round((new Date(endDate) - new Date(startDate)) / 86400000) + 1;
+    if(diff >= 1 && diff <= 14) numDays = diff;
+  }
+
+  const travelers = Math.max(1, Math.min(12, Number(document.getElementById('travelers').value) || 1));
+  const budget = Number(budgetInput.value);
+  const currency = currencySelect.value;
+  const interests = Array.from(document.querySelectorAll('.chip.active')).map(c=>c.dataset.v);
+
+  generateBtn.classList.add('loading');
+  generateBtn.disabled = true;
+
+  // Call FastAPI backend instead of local mock
+  async function generate() {
+    async function getFreshToken() {
+      await fetch("http://localhost:8000/api/v1/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: "demo" + Date.now() + "@example.com", name: "Demo User", password: "password" })
+      });
+      const fd = new URLSearchParams();
+      fd.append("username", "demo@example.com");
+      fd.append("password", "password");
+      let loginRes = await fetch("http://localhost:8000/api/v1/auth/login", { method: "POST", body: fd });
+      if(!loginRes.ok) {
+         await fetch("http://localhost:8000/api/v1/auth/register", {
+           method: "POST", headers: { "Content-Type": "application/json" },
+           body: JSON.stringify({ email: "demo@example.com", name: "Demo User", password: "password" })
+         });
+         loginRes = await fetch("http://localhost:8000/api/v1/auth/login", { method: "POST", body: fd });
+      }
+      const tokenData = await loginRes.json();
+      localStorage.setItem("meridian_token", tokenData.access_token);
+      return tokenData.access_token;
+    }
+
+    try {
+      let token = localStorage.getItem("meridian_token");
+      if (!token) {
+        token = await getFreshToken();
+      }
+
+      const tripPayload = {
+        destination,
+        budget,
+        currency,
+        start_date: startDate ? new Date(startDate).toISOString() : null,
+        end_date: endDate ? new Date(endDate).toISOString() : null,
+        travelers,
+        interests
+      };
+
+      let res = await fetch("http://localhost:8000/api/v1/trips/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify(tripPayload)
+      });
+      
+      if (res.status === 401) {
+        console.log("Token invalid or expired. Retrying with fresh registration...");
+        localStorage.removeItem("meridian_token");
+        token = await getFreshToken();
+        res = await fetch("http://localhost:8000/api/v1/trips/", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          },
+          body: JSON.stringify(tripPayload)
+        });
+      }
+      
+      if (!res.ok) throw new Error("Backend failed to generate trip");
+      const data = await res.json();
+      
+      let totalCost = 0;
+      const formattedDays = (data.days || []).map(d => {
+        const items = (d.items || []).map(i => {
+          totalCost += (i.estimated_cost || 0);
+          return {
+            order: i.order,
+            type: i.type,
+            name: i.name,
+            desc: i.description,
+            startTime: i.start_time,
+            durationMins: i.duration_mins,
+            estimatedCost: i.estimated_cost || 0,
+            sub: i.type,
+            
+            // Map new backend fields
+            placeId: i.place_id,
+            lat: i.lat,
+            lng: i.lng,
+            rating: i.rating,
+            priceLevel: i.price_level,
+            photoUrl: i.photo_url ? (i.photo_url.startsWith('/') ? 'http://localhost:8000' + i.photo_url : i.photo_url) : null,
+            address: i.address,
+            reviewsCount: i.reviews_count,
+            openingHours: i.opening_hours,
+            entryFee: i.entry_fee,
+            bestTimeToVisit: i.best_time_to_visit,
+            category: i.category,
+            distanceFromPrev: i.distance_from_prev,
+            durationFromPrev: i.duration_from_prev,
+            directionsLink: i.directions_link,
+            googleMapsLink: i.google_maps_link,
+            arrivalTime: i.arrival_time,
+            departure_time: i.departure_time
+          };
+        });
+        return { dayNumber: d.day_number, title: d.title, items };
+      });
+
+      currentTrip = {
+        destination: data.destination,
+        currency: data.currency,
+        budget: data.budget,
+        travelers: data.travelers,
+        numDays: formattedDays.length || numDays,
+        startDate: startDate,
+        endDate: endDate,
+        interests: interests,
+        totalEstimatedCost: totalCost,
+        totalWithBuffer: totalCost * 1.15,
+        summary: data.summary,
+        days: formattedDays,
+        metrics: data.metrics
+      };
+
+      activeDayIndex = 0;
+      renderResults(currentTrip);
+      document.getElementById('results').hidden = false;
+      document.getElementById('results').scrollIntoView({behavior:'smooth', block:'start'});
+    } catch (err) {
+      console.error(err);
+      alert("Error generating trip from backend. Check the console.");
+    } finally {
+      generateBtn.classList.remove('loading');
+      generateBtn.disabled = false;
+    }
+  }
+  
+  generate();
+});
+
+document.getElementById('newTripBtn').addEventListener('click', ()=>{
+  document.getElementById('results').hidden = true;
+  document.getElementById('hero').scrollIntoView({behavior:'smooth'});
+});
+
+/* ============================================================
+   4. Rendering: results header, timeline, day tabs
+============================================================ */
+const TYPE_ICON = {attraction:"◆", restaurant:"◈", activity:"▲", transport:"→"};
+
+function renderResults(trip){
+  document.getElementById('resultTitle').innerHTML = `
+    <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(trip.destination)}" target="_blank" rel="noopener noreferrer">
+      ${escapeHTML(trip.destination)}
+    </a>`;
+  const dateStr = (trip.startDate && trip.endDate)
+    ? `${fmtDate(trip.startDate)} – ${fmtDate(trip.endDate)}`
+    : `${trip.numDays} days`;
+  document.getElementById('resultMeta').innerHTML =
+    `${dateStr} &nbsp;·&nbsp; ${trip.travelers} traveler${trip.travelers>1?'s':''} &nbsp;·&nbsp; <span class="mono">${trip.interests.join(', ') || 'open itinerary'}</span>`;
+  document.getElementById('resultSummary').textContent = trip.summary;
+
+  const sym = CURRENCY_SYMBOL[trip.currency];
+  document.getElementById('meterSpend').textContent = sym + Math.round(trip.totalWithBuffer).toLocaleString();
+  document.getElementById('meterBudget').textContent = sym + Math.round(trip.budget).toLocaleString();
+  const pct = Math.min(100, (trip.totalWithBuffer/trip.budget)*100);
+  document.getElementById('meterFill').style.width = pct + "%";
+  document.getElementById('meterFill').style.background = pct > 100
+    ? "linear-gradient(90deg, var(--gold), var(--rust))"
+    : "linear-gradient(90deg, var(--teal), var(--gold))";
+
+  // Populate Summary Metrics
+  const m = trip.metrics || {};
+  document.getElementById('metricDistance').textContent = (m.total_distance_km || 0).toFixed(1) + " km";
+  document.getElementById('metricDuration').textContent = (m.total_duration_mins || 0) + " mins";
+  document.getElementById('metricTransport').textContent = sym + Math.round(m.transport_cost || 0).toLocaleString();
+  document.getElementById('metricFood').textContent = sym + Math.round(m.food_cost || 0).toLocaleString();
+  document.getElementById('metricTickets').textContent = sym + Math.round(m.ticket_cost || 0).toLocaleString();
+  document.getElementById('metricHotel').textContent = sym + Math.round(m.hotel_cost || 0).toLocaleString();
+  document.getElementById('metricTotalCost').textContent = sym + Math.round(m.total_cost || 0).toLocaleString();
+  document.getElementById('metricRemaining').textContent = sym + Math.round(m.remaining_budget || 0).toLocaleString();
+  
+  const linkBtn = document.getElementById('metricRouteLink');
+  if (m.route_link) {
+    linkBtn.href = m.route_link;
+    linkBtn.style.display = "block";
+  } else {
+    linkBtn.style.display = "none";
+  }
+
+  renderDayTabs(trip);
+  renderTimeline(trip);
+  renderRouteMap(trip);
+  renderBudgetChart(trip);
+}
+
+function fmtDate(iso){
+  const d = new Date(iso + "T00:00:00");
+  return d.toLocaleDateString(undefined, {month:'short', day:'numeric'});
+}
+
+function renderDayTabs(trip){
+  const nav = document.getElementById('dayTabs');
+  nav.innerHTML = "";
+  trip.days.forEach((day, i)=>{
+    const btn = document.createElement('button');
+    btn.className = 'day-tab' + (i===activeDayIndex ? ' active' : '');
+    btn.textContent = `DAY ${String(day.dayNumber).padStart(2,'0')}`;
+    btn.addEventListener('click', ()=>{
+      activeDayIndex = i;
+      renderDayTabs(trip);
+      renderTimeline(trip);
+      renderRouteMap(trip);
+    });
+    nav.appendChild(btn);
+  });
+}
+
+function renderTimeline(trip){
+  const wrap = document.getElementById('timeline');
+  wrap.innerHTML = "";
+  const day = trip.days[activeDayIndex];
+  const sym = CURRENCY_SYMBOL[trip.currency];
+
+  const heading = document.createElement('h3');
+  heading.style.margin = "0 0 6px";
+  heading.style.fontSize = "17px";
+  heading.textContent = `Day ${day.dayNumber} — ${day.title}`;
+  wrap.appendChild(heading);
+
+  const row = document.createElement('div');
+  row.style.display = "flex"; row.style.flexDirection = "column";
+  
+  (day.items || []).forEach(item=>{
+    let travelHtml = "";
+    if (item.distanceFromPrev && item.distanceFromPrev > 0) {
+      travelHtml = `
+        <div class="item-travel-info">
+          <span>🚗 ${item.distanceFromPrev} km away</span>
+          <span>·</span>
+          <span>⏱️ ~${item.durationFromPrev} mins travel time</span>
+        </div>
+      `;
+    }
+
+    let metaHtml = "";
+    if (item.rating) {
+      metaHtml += `<span class="item-meta-badge">⭐ ${item.rating.toFixed(1)} (${(item.reviewsCount || 0).toLocaleString()} reviews)</span>`;
+    }
+    if (item.category) {
+      metaHtml += `<span class="item-meta-badge">${escapeHTML(item.category)}</span>`;
+    }
+    if (item.bestTimeToVisit) {
+      metaHtml += `<span class="item-meta-badge">🕒 Best: ${escapeHTML(item.bestTimeToVisit)}</span>`;
+    }
+
+    let feeText = item.estimatedCost > 0 ? `${sym}${item.estimatedCost.toFixed(0)}` : "Free";
+
+    let actionsHtml = `
+      <div class="item-actions">
+        <a href="${item.googleMapsLink}" target="_blank" rel="noopener noreferrer" class="item-btn">
+          View on Maps ↗
+        </a>
+    `;
+    if (item.directionsLink) {
+      actionsHtml += `
+        <a href="${item.directionsLink}" target="_blank" rel="noopener noreferrer" class="item-btn">
+          Directions ↗
+        </a>
+      `;
+    }
+    actionsHtml += `</div>`;
+
+    const line = document.createElement('div');
+    line.className = 'item';
+    line.innerHTML = `
+      <div class="item-time mono">${item.startTime}</div>
+      <div class="item-card">
+        ${travelHtml}
+        <div class="item-card-inner">
+          <div class="item-card-text">
+            <div class="item-top">
+              <div>
+                <div class="item-name">
+                  <a href="${item.googleMapsLink}" target="_blank" rel="noopener noreferrer">
+                    ${escapeHTML(item.name)} <span class="link-arrow">↗</span>
+                  </a>
+                </div>
+                <div class="item-type">${TYPE_ICON[item.type]||'•'} ${item.sub || item.type}</div>
+              </div>
+              <div class="item-cost">${feeText}</div>
+            </div>
+            <div class="item-desc">${escapeHTML(item.desc)}</div>
+            <div class="item-sub">~${item.durationMins} min</div>
+            <div class="item-meta-row">
+              ${metaHtml}
+            </div>
+            ${actionsHtml}
+          </div>
+          ${item.photoUrl ? `<a href="${item.googleMapsLink}" target="_blank" rel="noopener noreferrer" style="display: block; flex-shrink: 0;"><img src="${item.photoUrl}" class="item-card-img" alt="${escapeHTML(item.name)}"></a>` : ''}
+        </div>
+      </div>`;
+    row.appendChild(line);
+  });
+  wrap.appendChild(row);
+}
+
+function escapeHTML(s){
+  return s.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
+/* ============================================================
+   5. Route panel — stylized (non-geographic) plot of the day's stops
+============================================================ */
+function renderRouteMap(trip){
+  const svg = document.getElementById('routeMap');
+  svg.innerHTML = "";
+  const day = trip.days[activeDayIndex];
+  const W = 300, H = 230, pad = 30;
+
+  // deterministic pseudo-layout per item (not real geodata — purely illustrative)
+  const seed = day.dayNumber * 97;
+  const pts = day.items.map((item, i)=>{
+    const angle = (seed + i*67) % 360 * Math.PI/180;
+    const radius = 35 + ((seed*13 + i*41) % 55);
+    const cx = W/2 + Math.cos(angle)*radius + (i%2===0? 10:-10);
+    const cy = H/2 + Math.sin(angle)*radius*0.75;
+    return {x: Math.max(pad, Math.min(W-pad, cx)), y: Math.max(pad, Math.min(H-pad, cy)), item};
+  });
+
+  const ns = "http://www.w3.org/2000/svg";
+  // background hatch
+  const bg = document.createElementNS(ns,'rect');
+  bg.setAttribute('x',0); bg.setAttribute('y',0); bg.setAttribute('width',W); bg.setAttribute('height',H);
+  bg.setAttribute('fill','none');
+  svg.appendChild(bg);
+
+  // dashed path connecting stops in order
+  let d = "";
+  pts.forEach((p,i)=>{ d += (i===0? "M":"L") + p.x + "," + p.y + " "; });
+  const path = document.createElementNS(ns,'path');
+  path.setAttribute('d', d);
+  path.setAttribute('fill','none');
+  path.setAttribute('stroke', '#3fa796');
+  path.setAttribute('stroke-width','1.3');
+  path.setAttribute('stroke-dasharray','4 4');
+  path.setAttribute('opacity','0.6');
+  svg.appendChild(path);
+
+  pts.forEach((p, i)=>{
+    const isMeal = p.item.type === 'restaurant';
+    const c = document.createElementNS(ns,'circle');
+    c.setAttribute('cx', p.x); c.setAttribute('cy', p.y); c.setAttribute('r', isMeal? 5:6);
+    c.setAttribute('fill', isMeal ? '#3fa796' : '#c9a227');
+    c.setAttribute('stroke', '#0a1120'); c.setAttribute('stroke-width','2');
+    svg.appendChild(c);
+
+    const t = document.createElementNS(ns,'text');
+    t.setAttribute('x', p.x); t.setAttribute('y', p.y - 10);
+    t.setAttribute('text-anchor','middle');
+    t.setAttribute('font-family','IBM Plex Mono, monospace');
+    t.setAttribute('font-size','8.5');
+    t.setAttribute('fill','#8b93a7');
+    t.textContent = String(i+1) + " · " + truncate(p.item.name, 16);
+    svg.appendChild(t);
+  });
+}
+function truncate(s,n){ return s.length>n ? s.slice(0,n-1)+"…" : s; }
+
+/* ============================================================
+   6. Budget donut (native canvas, no chart library)
+============================================================ */
+function renderBudgetChart(trip){
+  const canvas = document.getElementById('budgetChart');
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width, h = canvas.height;
+  ctx.clearRect(0,0,w,h);
+
+  let attractionsCost = 0, foodCost = 0;
+  trip.days.forEach(day=> day.items.forEach(item=>{
+    if(item.type === 'restaurant') foodCost += item.estimatedCost;
+    else attractionsCost += item.estimatedCost;
+  }));
+  const total = attractionsCost + foodCost || 1;
+
+  const cx = w/2, cy = h/2, rOuter = w/2 - 4, rInner = rOuter*0.62;
+  let start = -Math.PI/2;
+  [[attractionsCost, '#c9a227'], [foodCost, '#3fa796']].forEach(([val, color])=>{
+    const sweep = (val/total) * Math.PI*2;
+    ctx.beginPath();
+    ctx.arc(cx, cy, rOuter, start, start+sweep);
+    ctx.arc(cx, cy, rInner, start+sweep, start, true);
+    ctx.closePath();
+    ctx.fillStyle = color;
+    ctx.fill();
+    start += sweep;
+  });
+
+  const sym = CURRENCY_SYMBOL[trip.currency];
+  const box = document.getElementById('budgetBreakdown');
+  box.innerHTML = `
+    <div class="breakdown-row"><span class="k"><i style="background:#c9a227;"></i>Attractions & activities</span><span class="v">${sym}${Math.round(attractionsCost)}</span></div>
+    <div class="breakdown-row"><span class="k"><i style="background:#3fa796;"></i>Meals</span><span class="v">${sym}${Math.round(foodCost)}</span></div>
+    <div class="breakdown-row"><span class="k">+ 15% buffer</span><span class="v">${sym}${Math.round(total*0.15)}</span></div>
+  `;
+}
+
+/* ============================================================
+   7. Save / load trips via persistent artifact storage
+============================================================ */
+const saveTripBtn = document.getElementById('saveTripBtn');
+const saveNote = document.getElementById('saveNote');
+
+saveTripBtn.addEventListener('click', async ()=>{
+  if(!currentTrip) return;
+  saveTripBtn.disabled = true;
+  saveNote.textContent = "Saving…";
+  try{
+    const id = 'trip_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
+    const record = {id, savedAt: new Date().toISOString(), ...currentTrip};
+    const result = await window.storage.set(`trips:${id}`, JSON.stringify(record), false);
+    if(!result) throw new Error("no result from storage");
+    saveNote.textContent = "Saved to My trips.";
+    loadSavedTrips();
+  }catch(err){
+    console.error("Save failed:", err);
+    saveNote.textContent = "Couldn't save just now — try again.";
+  }finally{
+    saveTripBtn.disabled = false;
+    setTimeout(()=>{ saveNote.textContent = ""; }, 3500);
+  }
+});
+
+async function loadSavedTrips(){
+  const grid = document.getElementById('savedGrid');
+  try{
+    const listResult = await window.storage.list('trips:', false);
+    const keys = (listResult && listResult.keys) || [];
+    if(keys.length === 0){
+      grid.innerHTML = `<div class="empty-state">Nothing saved yet — plan a trip above and save it to see it here.</div>`;
+      return;
+    }
+    const records = [];
+    for(const key of keys){
+      try{
+        const got = await window.storage.get(key, false);
+        if(got && got.value) records.push(JSON.parse(got.value));
+      }catch(e){ /* skip unreadable key */ }
+    }
+    records.sort((a,b)=> new Date(b.savedAt) - new Date(a.savedAt));
+
+    grid.innerHTML = "";
+    records.forEach(rec=>{
+      const sym = CURRENCY_SYMBOL[rec.currency] || '$';
+      const card = document.createElement('div');
+      card.className = 'saved-card';
+      card.innerHTML = `
+        <h4>${escapeHTML(rec.destination)}</h4>
+        <div class="meta">${rec.numDays} days · ${rec.travelers} traveler${rec.travelers>1?'s':''} · ${sym}${Math.round(rec.totalWithBuffer).toLocaleString()} est.</div>
+        <div class="actions">
+          <button class="view">View</button>
+          <button class="del">Delete</button>
+        </div>`;
+      card.querySelector('.view').addEventListener('click', ()=>{
+        currentTrip = rec;
+        activeDayIndex = 0;
+        renderResults(currentTrip);
+        document.getElementById('results').hidden = false;
+        document.getElementById('results').scrollIntoView({behavior:'smooth'});
+      });
+      card.querySelector('.del').addEventListener('click', async ()=>{
+        card.style.opacity = '0.5';
+        try{
+          await window.storage.delete(`trips:${rec.id}`, false);
+          loadSavedTrips();
+        }catch(e){
+          console.error("Delete failed:", e);
+          card.style.opacity = '1';
+        }
+      });
+      grid.appendChild(card);
+    });
+  }catch(err){
+    console.error("Could not load saved trips:", err);
+    grid.innerHTML = `<div class="empty-state">Couldn't load saved trips right now.</div>`;
+  }
+}
+loadSavedTrips();
+</script>
+</body>
+</html>
