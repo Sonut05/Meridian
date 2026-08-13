@@ -6,6 +6,8 @@
 <title>Meridian — Plan by budget</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <style>
   :root{
     --bg:#0a1120;
@@ -257,7 +259,7 @@
   aside.route-panel{ position:sticky; top:20px; display:flex; flex-direction:column; gap:18px; }
   .panel-box{ background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:18px; }
   .panel-box h3{ font-size:13px; margin:0 0 12px; color:var(--muted); font-weight:600; letter-spacing:0.03em; text-transform:uppercase; font-family:'IBM Plex Mono', monospace;}
-  #routeMap{ width:100%; height:230px; display:block; }
+  #routeMap{ width:100%; height:230px; display:block; border-radius:8px; border:1px solid var(--line); z-index:1; }
   .legend{ display:flex; gap:16px; margin-top:10px; font-size:11.5px; color:var(--muted); }
   .legend span{ display:inline-flex; align-items:center; gap:6px; }
   .legend i{ width:8px; height:8px; border-radius:50%; display:inline-block; }
@@ -445,7 +447,7 @@
       <aside class="route-panel">
         <div class="panel-box">
           <h3>Route — active day</h3>
-          <svg id="routeMap" viewBox="0 0 300 230"></svg>
+          <div id="routeMap"></div>
           <div class="legend">
             <span><i style="background:var(--gold);"></i>Stop, in order</span>
             <span><i style="background:var(--teal);"></i>Meal</span>
@@ -866,24 +868,37 @@ form.addEventListener('submit', (e)=>{
   generateBtn.classList.add('loading');
   generateBtn.disabled = true;
 
+  const API_BASE_URL = (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
+    ? "http://localhost:8000/api/v1"
+    : (window.location.protocol === "file:")
+      ? "http://localhost:8000/api/v1"
+      : "/api/v1";
+
+  const BACKEND_HOST = (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
+    ? "http://localhost:8000"
+    : (window.location.protocol === "file:")
+      ? "http://localhost:8000"
+      : window.location.origin;
+
   // Call FastAPI backend instead of local mock
   async function generate() {
     async function getFreshToken() {
-      await fetch("http://localhost:8000/api/v1/auth/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: "demo" + Date.now() + "@example.com", name: "Demo User", password: "password" })
-      });
       const fd = new URLSearchParams();
       fd.append("username", "demo@example.com");
       fd.append("password", "password");
-      let loginRes = await fetch("http://localhost:8000/api/v1/auth/login", { method: "POST", body: fd });
+      let loginRes = await fetch(`${API_BASE_URL}/auth/login`, { method: "POST", body: fd });
       if(!loginRes.ok) {
-         await fetch("http://localhost:8000/api/v1/auth/register", {
+         const regRes = await fetch(`${API_BASE_URL}/auth/register`, {
            method: "POST", headers: { "Content-Type": "application/json" },
            body: JSON.stringify({ email: "demo@example.com", name: "Demo User", password: "password" })
          });
-         loginRes = await fetch("http://localhost:8000/api/v1/auth/login", { method: "POST", body: fd });
+         if(!regRes.ok) {
+           throw new Error("Failed to register demo user");
+         }
+         loginRes = await fetch(`${API_BASE_URL}/auth/login`, { method: "POST", body: fd });
+         if(!loginRes.ok) {
+           throw new Error("Failed to login after registration");
+         }
       }
       const tokenData = await loginRes.json();
       localStorage.setItem("meridian_token", tokenData.access_token);
@@ -906,7 +921,7 @@ form.addEventListener('submit', (e)=>{
         interests
       };
 
-      let res = await fetch("http://localhost:8000/api/v1/trips/", {
+      let res = await fetch(`${API_BASE_URL}/trips/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -919,7 +934,7 @@ form.addEventListener('submit', (e)=>{
         console.log("Token invalid or expired. Retrying with fresh registration...");
         localStorage.removeItem("meridian_token");
         token = await getFreshToken();
-        res = await fetch("http://localhost:8000/api/v1/trips/", {
+        res = await fetch(`${API_BASE_URL}/trips/`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -952,7 +967,7 @@ form.addEventListener('submit', (e)=>{
             lng: i.lng,
             rating: i.rating,
             priceLevel: i.price_level,
-            photoUrl: i.photo_url ? (i.photo_url.startsWith('/') ? 'http://localhost:8000' + i.photo_url : i.photo_url) : null,
+            photoUrl: i.photo_url ? (i.photo_url.startsWith('/') ? BACKEND_HOST + i.photo_url : i.photo_url) : null,
             address: i.address,
             reviewsCount: i.reviews_count,
             openingHours: i.opening_hours,
@@ -1176,58 +1191,118 @@ function escapeHTML(s){
 /* ============================================================
    5. Route panel — stylized (non-geographic) plot of the day's stops
 ============================================================ */
+/* ============================================================
+   5. Route panel — Leaflet Interactive Map
+ ============================================================ */
+let leafletMap = null;
+let routePolyline = null;
+let mapMarkers = [];
+
 function renderRouteMap(trip){
-  const svg = document.getElementById('routeMap');
-  svg.innerHTML = "";
   const day = trip.days[activeDayIndex];
-  const W = 300, H = 230, pad = 30;
-
-  // deterministic pseudo-layout per item (not real geodata — purely illustrative)
-  const seed = day.dayNumber * 97;
-  const pts = day.items.map((item, i)=>{
-    const angle = (seed + i*67) % 360 * Math.PI/180;
-    const radius = 35 + ((seed*13 + i*41) % 55);
-    const cx = W/2 + Math.cos(angle)*radius + (i%2===0? 10:-10);
-    const cy = H/2 + Math.sin(angle)*radius*0.75;
-    return {x: Math.max(pad, Math.min(W-pad, cx)), y: Math.max(pad, Math.min(H-pad, cy)), item};
+  
+  // 1. Filter out invalid/empty coordinates (0.0, 0.0 or null)
+  const points = [];
+  const validItems = [];
+  (day.items || []).forEach(item => {
+    if (item.lat && item.lng && (item.lat !== 0 || item.lng !== 0)) {
+      points.push([item.lat, item.lng]);
+      validItems.push(item);
+    }
   });
 
-  const ns = "http://www.w3.org/2000/svg";
-  // background hatch
-  const bg = document.createElementNS(ns,'rect');
-  bg.setAttribute('x',0); bg.setAttribute('y',0); bg.setAttribute('width',W); bg.setAttribute('height',H);
-  bg.setAttribute('fill','none');
-  svg.appendChild(bg);
+  // 2. Clear previous layers if the map is initialized
+  if (leafletMap) {
+    if (routePolyline) {
+      leafletMap.removeLayer(routePolyline);
+      routePolyline = null;
+    }
+    mapMarkers.forEach(marker => {
+      leafletMap.removeLayer(marker);
+    });
+    mapMarkers = [];
+  }
 
-  // dashed path connecting stops in order
-  let d = "";
-  pts.forEach((p,i)=>{ d += (i===0? "M":"L") + p.x + "," + p.y + " "; });
-  const path = document.createElementNS(ns,'path');
-  path.setAttribute('d', d);
-  path.setAttribute('fill','none');
-  path.setAttribute('stroke', '#3fa796');
-  path.setAttribute('stroke-width','1.3');
-  path.setAttribute('stroke-dasharray','4 4');
-  path.setAttribute('opacity','0.6');
-  svg.appendChild(path);
+  // 3. Handle when there are no valid coordinates
+  if (points.length === 0) {
+    // If no coordinates are available, show general destination area if trip coordinates are valid
+    if (trip.lat && trip.lng) {
+      points.push([trip.lat, trip.lng]);
+    } else {
+      // Default fallback (e.g. Kyoto / general center)
+      points.push([35.0116, 135.7681]);
+    }
+  }
 
-  pts.forEach((p, i)=>{
-    const isMeal = p.item.type === 'restaurant';
-    const c = document.createElementNS(ns,'circle');
-    c.setAttribute('cx', p.x); c.setAttribute('cy', p.y); c.setAttribute('r', isMeal? 5:6);
-    c.setAttribute('fill', isMeal ? '#3fa796' : '#c9a227');
-    c.setAttribute('stroke', '#0a1120'); c.setAttribute('stroke-width','2');
-    svg.appendChild(c);
+  // 4. Initialize Leaflet Map if not done already
+  if (!leafletMap) {
+    leafletMap = L.map('routeMap', { zoomControl: false });
+    
+    // Premium Dark-Mode theme matching the app's CSS colors
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+      subdomains: 'abcd',
+      maxZoom: 20
+    }).addTo(leafletMap);
+    
+    L.control.zoom({ position: 'bottomright' }).addTo(leafletMap);
+  }
 
-    const t = document.createElementNS(ns,'text');
-    t.setAttribute('x', p.x); t.setAttribute('y', p.y - 10);
-    t.setAttribute('text-anchor','middle');
-    t.setAttribute('font-family','IBM Plex Mono, monospace');
-    t.setAttribute('font-size','8.5');
-    t.setAttribute('fill','#8b93a7');
-    t.textContent = String(i+1) + " · " + truncate(p.item.name, 16);
-    svg.appendChild(t);
+  // 5. Add Markers for each destination
+  validItems.forEach((item, idx) => {
+    const isMeal = item.type === 'restaurant';
+    
+    // Create custom color dots using divIcon
+    const markerHtml = `
+      <div style="
+        background-color: ${isMeal ? 'var(--teal)' : 'var(--gold)'};
+        width: 12px; height: 12px;
+        border-radius: 50%;
+        border: 2px solid var(--bg);
+        box-shadow: 0 0 0 2px ${isMeal ? 'var(--teal)' : 'var(--gold)'};
+      "></div>
+    `;
+    
+    const customIcon = L.divIcon({
+      html: markerHtml,
+      className: 'custom-map-marker',
+      iconSize: [12, 12],
+      iconAnchor: [6, 6]
+    });
+
+    const marker = L.marker([item.lat, item.lng], { icon: customIcon }).addTo(leafletMap);
+    
+    marker.bindPopup(`
+      <div style="font-family: 'Public Sans', sans-serif; color: #111; font-size: 13px;">
+        <b style="color: #111;">${escapeHTML(item.name)}</b><br>
+        <span style="color: #666; font-size: 11px;">🕒 ${item.startTime} (${item.durationMins} mins)</span><br>
+        <span style="color: var(--teal-dim); font-size: 11px; font-weight: 600;">Category: ${escapeHTML(item.category || item.type)}</span>
+      </div>
+    `);
+    
+    mapMarkers.push(marker);
   });
+
+  // 6. Draw route connections in order
+  if (points.length > 1) {
+    routePolyline = L.polyline(points, {
+      color: '#3fa796', // Matches --teal
+      weight: 3,
+      opacity: 0.8,
+      dashArray: '5, 10'
+    }).addTo(leafletMap);
+    
+    // Fit the map view to contain all markers with some padding
+    leafletMap.fitBounds(L.latLngBounds(points), { padding: [30, 30] });
+  } else {
+    // Single point zoom
+    leafletMap.setView(points[0], 12);
+  }
+
+  // 7. Schedule invalidateSize to fix rendering in transition animations
+  setTimeout(() => {
+    leafletMap.invalidateSize();
+  }, 200);
 }
 function truncate(s,n){ return s.length>n ? s.slice(0,n-1)+"…" : s; }
 

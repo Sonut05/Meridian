@@ -1,6 +1,11 @@
 import asyncio
 import httpx
 import json
+import sys
+
+# Reconfigure stdout to support unicode prints on Windows
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8')
 
 async def test_trip_generation():
     print("Testing full trip generation backend endpoint...")

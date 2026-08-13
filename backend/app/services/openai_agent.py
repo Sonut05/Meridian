@@ -342,7 +342,7 @@ Return ONLY valid JSON matching this schema:
     is_standard_openai = settings.OPENAI_API_KEY.startswith("sk-")
     
     if not is_standard_openai:
-        print("💡 RECOMMENDATION: The configured OpenAI API key is a RapidAPI proxy key which has limited monthly quotas (often returning HTTP 429).")
+        print("RECOMMENDATION: The configured OpenAI API key is a RapidAPI proxy key which has limited monthly quotas (often returning HTTP 429).")
         print("   To avoid rate limits and get 100% accurate results, update your .env to use an official OpenAI key starting with 'sk-'.")
     
     if is_standard_openai:

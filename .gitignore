@@ -1,0 +1,26 @@
+# Virtual environment
+venv/
+ENV/
+env/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Local environment variables (contains secrets)
+.env
+backend/.env
+
+# Local SQLite databases
+*.db
+*.sqlite
+*.sqlite3
+backend/trip_planner.db
+backend/trip_planner_cache.db
+
+# IDEs and OS metadata
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

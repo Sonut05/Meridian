@@ -1,10 +1,16 @@
 import json
-import aiosqlite
 import os
+import tempfile
+import aiosqlite
+from app.core.config import get_settings
 
-CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-# trip_planner.db is located in the backend folder (2 levels up from backend/app/services)
-DB_PATH = os.path.abspath(os.path.join(CURRENT_DIR, "..", "..", "trip_planner.db"))
+settings = get_settings()
+
+# If running on Netlify/Serverless or using a remote database, place SQLite cache in a writeable /tmp path
+if "NETLIFY" in os.environ or "AWS_LAMBDA_FUNCTION_NAME" in os.environ or not settings.DATABASE_URL.startswith("sqlite"):
+    DB_PATH = os.path.join(tempfile.gettempdir(), "trip_planner_cache.db")
+else:
+    DB_PATH = str(settings.DATABASE_PATH)
 
 async def init_cache():
     """Initializes the api_cache table if it does not exist."""
