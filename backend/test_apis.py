@@ -1,8 +1,15 @@
 import asyncio
+import os
 import httpx
 import json
+from pathlib import Path
 
-RAPIDAPI_KEY = "d178086224msh15da67ef876680dp1bcec6jsncd75355e1e65"
+# Load env file if it exists
+if os.path.exists(Path(__file__).parent / ".env"):
+    from dotenv import load_dotenv
+    load_dotenv(Path(__file__).parent / ".env")
+
+RAPIDAPI_KEY = os.getenv("OPENAI_API_KEY", "")
 
 async def test_openai():
     print("Testing OpenAI RapidAPI...")

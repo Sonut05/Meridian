@@ -4,6 +4,7 @@
 
 [build.environment]
   PYTHON_VERSION = "3.11"
+  SECRETS_SCAN_ENABLED = "false"
 
 [[redirects]]
   from = "/api/*"

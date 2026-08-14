@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "Meridian API"
     DATABASE_PATH: Path = BACKEND_DIR / "trip_planner.db"
     DATABASE_URL: str = ""
-    SECRET_KEY: str = "PLEASE_CHANGE_THIS_IN_PRODUCTION"
+    SECRET_KEY: str = "local_dev_only_secret_key_change_in_prod"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
 
