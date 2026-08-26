@@ -19,16 +19,17 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env")
 
     def model_post_init(self, __context):
-        # If DATABASE_URL is provided in env (e.g. from Supabase/Neon), use it
-        if self.DATABASE_URL:
-            # Handle standard postgres/postgresql scheme and convert to asyncpg
-            if self.DATABASE_URL.startswith("postgres://"):
-                self.DATABASE_URL = self.DATABASE_URL.replace("postgres://", "postgresql+asyncpg://", 1)
-            elif self.DATABASE_URL.startswith("postgresql://"):
-                self.DATABASE_URL = self.DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
-        else:
-            # Fallback to local SQLite database
-            self.DATABASE_URL = f"sqlite+aiosqlite:///{self.DATABASE_PATH}"
+        # Enforce PostgreSQL URL
+        if not self.DATABASE_URL:
+            # For local dev without env variables, default to a local postgres instance if needed,
+            # but ideally it should be set in .env. We'll set a placeholder.
+            self.DATABASE_URL = "postgresql+asyncpg://postgres:postgres@localhost:5432/trip_planner"
+            
+        # Handle standard postgres/postgresql scheme and convert to asyncpg
+        if self.DATABASE_URL.startswith("postgres://"):
+            self.DATABASE_URL = self.DATABASE_URL.replace("postgres://", "postgresql+asyncpg://", 1)
+        elif self.DATABASE_URL.startswith("postgresql://"):
+            self.DATABASE_URL = self.DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
 
 @lru_cache()
 def get_settings():

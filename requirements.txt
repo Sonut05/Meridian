@@ -1,7 +1,6 @@
 fastapi[all]
 uvicorn[standard]
 sqlalchemy[asyncio]
-aiosqlite
 alembic
 pydantic-settings
 httpx

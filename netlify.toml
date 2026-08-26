@@ -2,6 +2,9 @@
   publish = "frontend"
   functions = "netlify/functions"
 
+[functions]
+  included_files = ["backend/**"]
+
 [build.environment]
   PYTHON_VERSION = "3.11"
   SECRETS_SCAN_ENABLED = "false"
